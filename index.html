@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot Tester</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Telegram Bot Tester</h1>
+            
+            <form id="botForm" class="space-y-4">
+                <div>
+                    <label for="bot_token" class="block text-sm font-medium text-gray-700">Bot Token</label>
+                    <input type="text" 
+                           id="bot_token" 
+                           name="bot_token" 
+                           required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <p class="mt-1 text-sm text-gray-500">Enter your Telegram bot token from @BotFather</p>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button type="submit" 
+                            id="startButton"
+                            class="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Start Bot
+                    </button>
+                    
+                    <button type="button" 
+                            id="disconnectButton"
+                            class="flex-1 flex justify-center py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 hidden">
+                        Disconnect
+                    </button>
+                </div>
+            </form>
+
+            <div id="status" class="mt-4 text-center hidden">
+                <p class="text-sm"></p>
+            </div>
+
+            <div class="space-y-2 mt-6">
+                <h2 class="text-lg font-medium text-gray-800">Bot Commands</h2>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• /start - Get started with the bot</li>
+                    <li>• /run - Start the dice game script</li>
+                    <li>• /stop - Stop the dice game script</li>
+                </ul>
+            </div>
+
+            <div class="mt-6 p-4 bg-gray-50 rounded-md">
+                <h3 class="text-sm font-medium text-gray-800 mb-2">Instructions:</h3>
+                <ol class="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+                    <li>Enter your bot token in the field above</li>
+                    <li>Click "Start Bot" to initialize your bot</li>
+                    <li>Open Telegram and find your bot</li>
+                    <li>Use /start to begin interaction</li>
+                    <li>Use /run to start the dice game script</li>
+                    <li>Use /stop to stop the script</li>
+                    <li>Use "Disconnect" to stop the current bot and connect to a different one</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentBotToken = null;
+
+        function updateUIState(isConnected) {
+            const startButton = document.getElementById('startButton');
+            const disconnectButton = document.getElementById('disconnectButton');
+            const botTokenInput = document.getElementById('bot_token');
+            
+            if (isConnected) {
+                startButton.textContent = 'Reconnect Bot';
+                disconnectButton.classList.remove('hidden');
+                botTokenInput.value = currentBotToken;
+            } else {
+                startButton.textContent = 'Start Bot';
+                disconnectButton.classList.add('hidden');
+                botTokenInput.value = '';
+                currentBotToken = null;
+            }
+        }
+
+        document.getElementById('botForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const statusDiv = document.getElementById('status');
+            const statusText = statusDiv.querySelector('p');
+            
+            try {
+                const response = await fetch('/start_bot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bot_token: formData.get('bot_token')
+                    })
+                });
+                
+                const data = await response.json();
+                
+                statusDiv.classList.remove('hidden');
+                if (response.ok) {
+                    statusText.textContent = data.message;
+                    statusText.className = 'text-sm text-green-600';
+                    currentBotToken = formData.get('bot_token');
+                    updateUIState(true);
+                } else {
+                    statusText.textContent = data.error;
+                    statusText.className = 'text-sm text-red-600';
+                }
+            } catch (error) {
+                statusDiv.classList.remove('hidden');
+                statusText.textContent = 'An error occurred while starting the bot.';
+                statusText.className = 'text-sm text-red-600';
+            }
+        });
+
+        document.getElementById('disconnectButton').addEventListener('click', async () => {
+            if (!currentBotToken) return;
+
+            const statusDiv = document.getElementById('status');
+            const statusText = statusDiv.querySelector('p');
+            
+            try {
+                const response = await fetch('/disconnect_bot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bot_token: currentBotToken
+                    })
+                });
+                
+                const data = await response.json();
+                
+                statusDiv.classList.remove('hidden');
+                if (response.ok) {
+                    statusText.textContent = data.message;
+                    statusText.className = 'text-sm text-green-600';
+                    updateUIState(false);
+                } else {
+                    statusText.textContent = data.error;
+                    statusText.className = 'text-sm text-red-600';
+                }
+            } catch (error) {
+                statusDiv.classList.remove('hidden');
+                statusText.textContent = 'An error occurred while disconnecting the bot.';
+                statusText.className = 'text-sm text-red-600';
+            }
+        });
+    </script>
+</body>
+</html> 
